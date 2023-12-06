@@ -58,6 +58,13 @@ for sheet_name, sheet_data in df.items():
         (invalid_dates[date_column].str.split('/').str[1].str.split('-').str[0].astype(float).fillna(-1).astype(int) > 12) |
         (invalid_dates[date_column].str.split('/').str[2].astype(float).fillna(-1).astype(int) > 2023)
     ]
+    missing_values = sheet_data[sheet_data.isnull().any(axis=1)].copy()
+    if not missing_values.empty:
+       missing_values['Error'] = 'Missing Values'
+       error_file_name = f"{sheet_name}_error.xlsx"
+       missing_values.to_excel(error_file_name, index=False)
+       print(f"Error file '{error_file_name}' created with rows containing errors.")
+       sheet_data = sheet_data.dropna()
 
     # Check for duplicates within the sheet
     duplicate_rows = sheet_data[sheet_data.duplicated(subset='Numero', keep=False)]
@@ -73,15 +80,14 @@ for sheet_name, sheet_data in df.items():
         # Set the 'Error' column for duplicate row errors using .loc with .copy()
         error_rows = error_rows.copy()
         error_rows.loc[:, 'Error'] = 'Duplicate Row Error'
-
-        # Set the 'Error' column for invalid date errors using .loc with .copy()
         invalid_dates = invalid_dates.copy()
         invalid_dates.loc[:, 'Error'] = 'Invalid Date Error'
         # Combine both types of errors into a single DataFrame
-        combined_error = pd.concat([error_rows, invalid_dates], ignore_index=True)
+        combined_error = pd.concat([error_rows, invalid_dates,missing_values], ignore_index=True)
     
         # Create an error Excel file with all errors
         error_file_name = f"{sheet_name}_error.xlsx"
+       
         combined_error.to_excel(error_file_name, index=False)
         print(f"Error file '{error_file_name}' created with rows containing errors.")
     intersection_data = sheet_data[(first_occurrence) & (~sheet_data.index.isin(invalid_dates.index))]
